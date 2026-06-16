@@ -19,8 +19,13 @@ DELTA = {
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
+def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
+    yoko = 0 <= obj_rct.left and obj_rct.right <= WIDTH
+    tate = 0 <= obj_rct.top and obj_rct.bottom <= HEIGHT
+    return yoko, tate
+
+
 def create_bomb() -> tuple[pg.Surface, pg.Rect]:
-    """半径10の赤い爆弾画像と，ランダム位置のRectを生成する。"""
     bb_img = pg.Surface((BOMB_RADIUS * 2, BOMB_RADIUS * 2))
     bb_img.set_colorkey(BLACK)
     pg.draw.circle(bb_img, RED, (BOMB_RADIUS, BOMB_RADIUS), BOMB_RADIUS)
@@ -34,7 +39,7 @@ def create_bomb() -> tuple[pg.Surface, pg.Rect]:
 
 
 def main() -> None:
-    """ゲーム全体の処理を行う。"""
+
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
@@ -60,8 +65,22 @@ def main() -> None:
                 sum_mv[0] += delta[0]
                 sum_mv[1] += delta[1]
 
+        old_kk_rct = kk_rct.copy()
         kk_rct.move_ip(sum_mv)
+        if not all(check_bound(kk_rct)):
+            kk_rct = old_kk_rct
+
         bb_rct.move_ip(vx, vy)
+        yoko, tate = check_bound(bb_rct)
+        if not yoko:
+            vx *= -1
+            bb_rct.move_ip(vx, 0)
+        if not tate:
+            vy *= -1
+            bb_rct.move_ip(0, vy)
+
+        if kk_rct.colliderect(bb_rct):
+            return
 
         screen.blit(kk_img, kk_rct)
         screen.blit(bb_img, bb_rct)
