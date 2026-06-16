@@ -19,6 +19,18 @@ DELTA = {
     pg.K_LEFT: (-5, 0),
     pg.K_RIGHT: (5, 0),
 }
+KK_IMG_PATH = "fig/3.png"
+MOVEMENT_TO_ANGLE = {
+    (0, 0): 0,
+    (+5, 0): 180,
+    (-5, 0): 0,
+    (0, -5): -90,
+    (0, +5): 90,
+    (+5, -5): -135,
+    (+5, +5): 135,
+    (-5, -5): -45,
+    (-5, +5): 45,
+}
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,6 +43,7 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
 
 
 def calc_bomb_params(tmr: int) -> tuple[int, int]:
+
     level = tmr // 500
     radius = min(BOMB_START_RADIUS + level * 2, BOMB_MAX_RADIUS)
     speed = min(BOMB_START_SPEED + level, BOMB_MAX_SPEED)
@@ -38,6 +51,7 @@ def calc_bomb_params(tmr: int) -> tuple[int, int]:
 
 
 def create_bomb_img(radius: int) -> pg.Surface:
+
     bb_img = pg.Surface((radius * 2, radius * 2))
     bb_img.set_colorkey(BLACK)
     pg.draw.circle(bb_img, RED, (radius, radius), radius)
@@ -52,6 +66,15 @@ def create_bomb() -> tuple[pg.Surface, pg.Rect]:
         random.randint(BOMB_MAX_RADIUS, HEIGHT - BOMB_MAX_RADIUS),
     )
     return bb_img, bb_rct
+
+
+def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
+
+    kk_imgs = {}
+    kk_img = pg.image.load(KK_IMG_PATH)
+    for movement, angle in MOVEMENT_TO_ANGLE.items():
+        kk_imgs[movement] = pg.transform.rotozoom(kk_img, angle, 0.9)
+    return kk_imgs
 
 
 def show_game_over(
@@ -69,7 +92,6 @@ def show_game_over(
     txt_img = font.render("Game Over", True, WHITE)
     txt_rct = txt_img.get_rect(center=(WIDTH // 2, HEIGHT // 2))
 
-    kk_img = pg.transform.rotozoom(pg.image.load("fig/8.png"), 0, 0.9)
     left_kk_rct = kk_img.get_rect()
     right_kk_rct = kk_img.get_rect()
     left_kk_rct.centery = txt_rct.centery
@@ -90,8 +112,8 @@ def main() -> None:
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
-    kk_img = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
-    game_over_img = pg.transform.rotozoom(pg.image.load("fig/8.png"), 0, 0.9)
+    kk_imgs = get_kk_imgs()
+    kk_img = kk_imgs[(0, 0)]
     kk_rct = kk_img.get_rect()
     kk_rct.center = 300, 200
     bb_img, bb_rct = create_bomb()
@@ -113,9 +135,13 @@ def main() -> None:
                 sum_mv[0] += delta[0]
                 sum_mv[1] += delta[1]
 
+        old_kk_img = kk_img
         old_kk_rct = kk_rct.copy()
+        kk_img = kk_imgs[tuple(sum_mv)]
+        kk_rct = kk_img.get_rect(center=kk_rct.center)
         kk_rct.move_ip(sum_mv)
         if not all(check_bound(kk_rct)):
+            kk_img = old_kk_img
             kk_rct = old_kk_rct
 
         radius, speed = calc_bomb_params(tmr)
@@ -134,7 +160,7 @@ def main() -> None:
             bb_rct.move_ip(0, vy)
 
         if kk_rct.colliderect(bb_rct):
-            show_game_over(screen, bg_img, game_over_img, kk_rct)
+            show_game_over(screen, bg_img, kk_imgs[(0, 0)], kk_rct)
             return
 
         screen.blit(kk_img, kk_rct)
