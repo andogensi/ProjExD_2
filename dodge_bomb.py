@@ -7,9 +7,12 @@ import pygame as pg
 
 WIDTH, HEIGHT = 1100, 650
 BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
 RED = (255, 0, 0)
-BOMB_RADIUS = 10
+WHITE = (255, 255, 255)
+BOMB_START_RADIUS = 10
+BOMB_MAX_RADIUS = 60
+BOMB_START_SPEED = 5
+BOMB_MAX_SPEED = 15
 DELTA = {
     pg.K_UP: (0, -5),
     pg.K_DOWN: (0, 5),
@@ -21,25 +24,42 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
+
     yoko = 0 <= obj_rct.left and obj_rct.right <= WIDTH
     tate = 0 <= obj_rct.top and obj_rct.bottom <= HEIGHT
     return yoko, tate
 
 
-def create_bomb() -> tuple[pg.Surface, pg.Rect]:
-    bb_img = pg.Surface((BOMB_RADIUS * 2, BOMB_RADIUS * 2))
-    bb_img.set_colorkey(BLACK)
-    pg.draw.circle(bb_img, RED, (BOMB_RADIUS, BOMB_RADIUS), BOMB_RADIUS)
+def calc_bomb_params(tmr: int) -> tuple[int, int]:
+    level = tmr // 500
+    radius = min(BOMB_START_RADIUS + level * 2, BOMB_MAX_RADIUS)
+    speed = min(BOMB_START_SPEED + level, BOMB_MAX_SPEED)
+    return radius, speed
 
+
+def create_bomb_img(radius: int) -> pg.Surface:
+    bb_img = pg.Surface((radius * 2, radius * 2))
+    bb_img.set_colorkey(BLACK)
+    pg.draw.circle(bb_img, RED, (radius, radius), radius)
+    return bb_img
+
+
+def create_bomb() -> tuple[pg.Surface, pg.Rect]:
+    bb_img = create_bomb_img(BOMB_START_RADIUS)
     bb_rct = bb_img.get_rect()
     bb_rct.center = (
-        random.randint(BOMB_RADIUS, WIDTH - BOMB_RADIUS),
-        random.randint(BOMB_RADIUS, HEIGHT - BOMB_RADIUS),
+        random.randint(BOMB_MAX_RADIUS, WIDTH - BOMB_MAX_RADIUS),
+        random.randint(BOMB_MAX_RADIUS, HEIGHT - BOMB_MAX_RADIUS),
     )
     return bb_img, bb_rct
 
 
-def show_game_over(screen: pg.Surface) -> None:
+def show_game_over(
+    screen: pg.Surface,
+    bg_img: pg.Surface,
+    kk_img: pg.Surface,
+    kk_rct: pg.Rect,
+) -> None:
     cover = pg.Surface((WIDTH, HEIGHT))
     cover.fill(BLACK)
     cover.set_alpha(150)
@@ -66,14 +86,16 @@ def show_game_over(screen: pg.Surface) -> None:
 
 
 def main() -> None:
+
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
     kk_img = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
+    game_over_img = pg.transform.rotozoom(pg.image.load("fig/8.png"), 0, 0.9)
     kk_rct = kk_img.get_rect()
     kk_rct.center = 300, 200
     bb_img, bb_rct = create_bomb()
-    vx, vy = 5, 5
+    vx, vy = BOMB_START_SPEED, BOMB_START_SPEED
     clock = pg.time.Clock()
     tmr = 0
 
@@ -96,7 +118,13 @@ def main() -> None:
         if not all(check_bound(kk_rct)):
             kk_rct = old_kk_rct
 
+        radius, speed = calc_bomb_params(tmr)
+        bb_img = create_bomb_img(radius)
+        bb_rct = bb_img.get_rect(center=bb_rct.center)
+        vx = speed if vx > 0 else -speed
+        vy = speed if vy > 0 else -speed
         bb_rct.move_ip(vx, vy)
+
         yoko, tate = check_bound(bb_rct)
         if not yoko:
             vx *= -1
@@ -106,7 +134,7 @@ def main() -> None:
             bb_rct.move_ip(0, vy)
 
         if kk_rct.colliderect(bb_rct):
-            show_game_over(screen)
+            show_game_over(screen, bg_img, game_over_img, kk_rct)
             return
 
         screen.blit(kk_img, kk_rct)
