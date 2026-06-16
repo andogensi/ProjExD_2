@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import math
 
 import pygame as pg
 
@@ -13,6 +14,8 @@ BOMB_START_RADIUS = 10
 BOMB_MAX_RADIUS = 60
 BOMB_START_SPEED = 5
 BOMB_MAX_SPEED = 15
+BOMB_NORM = (BOMB_START_SPEED**2 + BOMB_START_SPEED**2) ** 0.5
+HOMING_DISTANCE = 300
 DELTA = {
     pg.K_UP: (0, -5),
     pg.K_DOWN: (0, 5),
@@ -75,6 +78,37 @@ def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
     for movement, angle in MOVEMENT_TO_ANGLE.items():
         kk_imgs[movement] = pg.transform.rotozoom(kk_img, angle, 0.9)
     return kk_imgs
+
+
+def calc_orientation(
+    org: pg.Rect, dst: pg.Rect, current_xy: tuple[float, float]
+) -> tuple[float, float]:
+
+    diff_x = dst.centerx - org.centerx
+    diff_y = dst.centery - org.centery
+    norm = math.hypot(diff_x, diff_y)
+    if norm < HOMING_DISTANCE or norm == 0:
+        return current_xy
+
+    return diff_x / norm * BOMB_NORM, diff_y / norm * BOMB_NORM
+
+
+def bounce_bound(obj_rct: pg.Rect, vx: float, vy: float) -> tuple[float, float]:
+
+    yoko, tate = check_bound(obj_rct)
+    if not yoko:
+        vx *= -1
+        if obj_rct.left < 0:
+            obj_rct.left = 0
+        elif obj_rct.right > WIDTH:
+            obj_rct.right = WIDTH
+    if not tate:
+        vy *= -1
+        if obj_rct.top < 0:
+            obj_rct.top = 0
+        elif obj_rct.bottom > HEIGHT:
+            obj_rct.bottom = HEIGHT
+    return vx, vy
 
 
 def show_game_over(
@@ -144,20 +178,12 @@ def main() -> None:
             kk_img = old_kk_img
             kk_rct = old_kk_rct
 
-        radius, speed = calc_bomb_params(tmr)
+        radius, _ = calc_bomb_params(tmr)
         bb_img = create_bomb_img(radius)
         bb_rct = bb_img.get_rect(center=bb_rct.center)
-        vx = speed if vx > 0 else -speed
-        vy = speed if vy > 0 else -speed
+        vx, vy = calc_orientation(bb_rct, kk_rct, (vx, vy))
         bb_rct.move_ip(vx, vy)
-
-        yoko, tate = check_bound(bb_rct)
-        if not yoko:
-            vx *= -1
-            bb_rct.move_ip(vx, 0)
-        if not tate:
-            vy *= -1
-            bb_rct.move_ip(0, vy)
+        vx, vy = bounce_bound(bb_rct, vx, vy)
 
         if kk_rct.colliderect(bb_rct):
             show_game_over(screen, bg_img, kk_imgs[(0, 0)], kk_rct)
