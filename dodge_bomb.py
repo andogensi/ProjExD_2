@@ -7,6 +7,7 @@ import pygame as pg
 
 WIDTH, HEIGHT = 1100, 650
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 BOMB_RADIUS = 10
 DELTA = {
@@ -38,8 +39,33 @@ def create_bomb() -> tuple[pg.Surface, pg.Rect]:
     return bb_img, bb_rct
 
 
-def main() -> None:
+def show_game_over(screen: pg.Surface) -> None:
+    cover = pg.Surface((WIDTH, HEIGHT))
+    cover.fill(BLACK)
+    cover.set_alpha(150)
+    screen.blit(cover, (0, 0))
 
+    font = pg.font.Font(None, 72)
+    txt_img = font.render("Game Over", True, WHITE)
+    txt_rct = txt_img.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+
+    kk_img = pg.transform.rotozoom(pg.image.load("fig/8.png"), 0, 0.9)
+    left_kk_rct = kk_img.get_rect()
+    right_kk_rct = kk_img.get_rect()
+    left_kk_rct.centery = txt_rct.centery
+    right_kk_rct.centery = txt_rct.centery
+    left_kk_rct.right = txt_rct.left - 35
+    right_kk_rct.left = txt_rct.right + 35
+
+    screen.blit(kk_img, left_kk_rct)
+    screen.blit(txt_img, txt_rct)
+    screen.blit(kk_img, right_kk_rct)
+
+    pg.display.update()
+    pg.time.wait(5000)
+
+
+def main() -> None:
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
@@ -80,6 +106,7 @@ def main() -> None:
             bb_rct.move_ip(0, vy)
 
         if kk_rct.colliderect(bb_rct):
+            show_game_over(screen)
             return
 
         screen.blit(kk_img, kk_rct)
