@@ -1,9 +1,14 @@
 import os
+import random
 import sys
+
 import pygame as pg
 
 
 WIDTH, HEIGHT = 1100, 650
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BOMB_RADIUS = 10
 DELTA = {
     pg.K_UP: (0, -5),
     pg.K_DOWN: (0, 5),
@@ -14,13 +19,30 @@ DELTA = {
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
+def create_bomb() -> tuple[pg.Surface, pg.Rect]:
+    """半径10の赤い爆弾画像と，ランダム位置のRectを生成する。"""
+    bb_img = pg.Surface((BOMB_RADIUS * 2, BOMB_RADIUS * 2))
+    bb_img.set_colorkey(BLACK)
+    pg.draw.circle(bb_img, RED, (BOMB_RADIUS, BOMB_RADIUS), BOMB_RADIUS)
+
+    bb_rct = bb_img.get_rect()
+    bb_rct.center = (
+        random.randint(BOMB_RADIUS, WIDTH - BOMB_RADIUS),
+        random.randint(BOMB_RADIUS, HEIGHT - BOMB_RADIUS),
+    )
+    return bb_img, bb_rct
+
+
 def main() -> None:
+    """ゲーム全体の処理を行う。"""
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
     kk_img = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
     kk_rct = kk_img.get_rect()
     kk_rct.center = 300, 200
+    bb_img, bb_rct = create_bomb()
+    vx, vy = 5, 5
     clock = pg.time.Clock()
     tmr = 0
 
@@ -39,7 +61,10 @@ def main() -> None:
                 sum_mv[1] += delta[1]
 
         kk_rct.move_ip(sum_mv)
+        bb_rct.move_ip(vx, vy)
+
         screen.blit(kk_img, kk_rct)
+        screen.blit(bb_img, bb_rct)
         pg.display.update()
         tmr += 1
         clock.tick(50)
