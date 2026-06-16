@@ -41,7 +41,12 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
-    """obj_rctが画面内に収まっているかを横方向・縦方向で判定する。"""
+    """
+    obj_rctが画面内に収まっているかを横方向・縦方向で判定する。
+    引数：こうかとんRectか爆弾Rect
+    戻り値：タプル（横方向判定結果，縦方向判定結果）
+            画面内ならTrue，画面外ならFalse
+    """
 
     yoko = 0 <= obj_rct.left and obj_rct.right <= WIDTH
     tate = 0 <= obj_rct.top and obj_rct.bottom <= HEIGHT
@@ -49,7 +54,11 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
 
 
 def create_bomb_img(radius: int) -> pg.Surface:
-    """指定した半径の爆弾画像を作成する。"""
+    """
+    指定した半径の爆弾画像を作成する。
+    引数：爆弾の半径
+    戻り値：爆弾画像Surface
+    """
 
     bb_img = pg.Surface((radius * 2, radius * 2))
     bb_img.set_colorkey(BLACK)
@@ -58,7 +67,11 @@ def create_bomb_img(radius: int) -> pg.Surface:
 
 
 def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
-    """大きさを変えた爆弾画像リストと加速度リストを作成する。"""
+    """
+    大きさを変えた爆弾画像リストと加速度リストを作成する。
+    引数：なし
+    戻り値：タプル（爆弾画像Surfaceのリスト，加速度のリスト）
+    """
 
     bb_imgs = []
     for r in range(1, BOMB_STAGES + 1):
@@ -68,7 +81,11 @@ def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
 
 
 def create_bomb() -> tuple[pg.Surface, pg.Rect]:
-    """初期位置をランダムに決めて爆弾画像とRectを作成する。"""
+    """
+    初期位置をランダムに決めて爆弾画像とRectを作成する。
+    引数：なし
+    戻り値：タプル（爆弾画像Surface，爆弾Rect）
+    """
 
     bb_img = create_bomb_img(BOMB_START_RADIUS)
     bb_rct = bb_img.get_rect()
@@ -80,7 +97,11 @@ def create_bomb() -> tuple[pg.Surface, pg.Rect]:
 
 
 def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
-    """移動方向ごとのこうかとん画像を回転して作成する。"""
+    """
+    移動量タプルごとのこうかとん画像Surfaceを作成する。
+    引数：なし
+    戻り値：移動量タプルをキー，こうかとん画像Surfaceを値とする辞書
+    """
 
     kk_imgs = {}
     kk_img = pg.image.load(KK_IMG_PATH)
@@ -92,7 +113,11 @@ def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
 def calc_orientation(
     org: pg.Rect, dst: pg.Rect, current_xy: tuple[float, float]
 ) -> tuple[float, float]:
-    """爆弾の向きを計算し、一定距離より遠いときはこうかとんへ向かわせる。"""
+    """
+    爆弾の向きを計算し，一定距離より遠いときはこうかとんへ向かわせる。
+    引数：orgは爆弾Rect，dstはこうかとんRect，current_xyは現在の速度ベクトル
+    戻り値：タプル（横方向速度，縦方向速度）
+    """
 
     diff_x = dst.centerx - org.centerx
     diff_y = dst.centery - org.centery
@@ -104,7 +129,11 @@ def calc_orientation(
 
 
 def bounce_bound(obj_rct: pg.Rect, vx: float, vy: float) -> tuple[float, float]:
-    """画面端で爆弾を跳ね返し、画面外に出た位置を補正する。"""
+    """
+    画面端で爆弾を跳ね返し，画面外に出た位置を補正する。
+    引数：爆弾Rect，横方向速度，縦方向速度
+    戻り値：タプル（補正後の横方向速度，補正後の縦方向速度）
+    """
 
     yoko, tate = check_bound(obj_rct)
     if not yoko:
@@ -123,7 +152,11 @@ def bounce_bound(obj_rct: pg.Rect, vx: float, vy: float) -> tuple[float, float]:
 
 
 def gameover(screen: pg.Surface) -> None:
-    """半透明の幕とGame Over文字を表示して終了画面にする。"""
+    """
+    半透明の幕とGame Over文字を表示して終了画面にする。
+    引数：画面Surface
+    戻り値：なし
+    """
 
     cover = pg.Surface((WIDTH, HEIGHT))
     cover.fill(BLACK)
@@ -151,7 +184,11 @@ def gameover(screen: pg.Surface) -> None:
 
 
 def main() -> None:
-    """ゲームの初期化、イベント処理、描画を行うメイン関数"""
+    """
+    ゲームの初期化，イベント処理，描画を行うメイン関数。
+    引数：なし
+    戻り値：なし
+    """
 
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
