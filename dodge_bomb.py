@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import math
+import time
 
 import pygame as pg
 
@@ -11,10 +12,10 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 WHITE = (255, 255, 255)
 BOMB_START_RADIUS = 10
-BOMB_MAX_RADIUS = 60
+BOMB_STAGES = 10
+BOMB_MAX_RADIUS = BOMB_START_RADIUS * BOMB_STAGES
 BOMB_START_SPEED = 5
-BOMB_MAX_SPEED = 15
-BOMB_NORM = (BOMB_START_SPEED**2 + BOMB_START_SPEED**2) ** 0.5
+BOMB_NORM = math.hypot(BOMB_START_SPEED, BOMB_START_SPEED)
 HOMING_DISTANCE = 300
 DELTA = {
     pg.K_UP: (0, -5),
@@ -23,6 +24,7 @@ DELTA = {
     pg.K_RIGHT: (5, 0),
 }
 KK_IMG_PATH = "fig/3.png"
+GAMEOVER_KK_IMG_PATH = "fig/8.png"
 MOVEMENT_TO_ANGLE = {
     (0, 0): 0,
     (+5, 0): 180,
@@ -39,21 +41,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
+    """obj_rctが画面内に収まっているかを横方向・縦方向で判定する。"""
 
     yoko = 0 <= obj_rct.left and obj_rct.right <= WIDTH
     tate = 0 <= obj_rct.top and obj_rct.bottom <= HEIGHT
     return yoko, tate
 
 
-def calc_bomb_params(tmr: int) -> tuple[int, int]:
-
-    level = tmr // 500
-    radius = min(BOMB_START_RADIUS + level * 2, BOMB_MAX_RADIUS)
-    speed = min(BOMB_START_SPEED + level, BOMB_MAX_SPEED)
-    return radius, speed
-
-
 def create_bomb_img(radius: int) -> pg.Surface:
+    """指定した半径の爆弾画像を作成する。"""
 
     bb_img = pg.Surface((radius * 2, radius * 2))
     bb_img.set_colorkey(BLACK)
@@ -61,7 +57,19 @@ def create_bomb_img(radius: int) -> pg.Surface:
     return bb_img
 
 
+def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
+    """大きさを変えた爆弾画像リストと加速度リストを作成する。"""
+
+    bb_imgs = []
+    for r in range(1, BOMB_STAGES + 1):
+        bb_imgs.append(create_bomb_img(BOMB_START_RADIUS * r))
+    bb_accs = [a for a in range(1, BOMB_STAGES + 1)]
+    return bb_imgs, bb_accs
+
+
 def create_bomb() -> tuple[pg.Surface, pg.Rect]:
+    """初期位置をランダムに決めて爆弾画像とRectを作成する。"""
+
     bb_img = create_bomb_img(BOMB_START_RADIUS)
     bb_rct = bb_img.get_rect()
     bb_rct.center = (
@@ -72,6 +80,7 @@ def create_bomb() -> tuple[pg.Surface, pg.Rect]:
 
 
 def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
+    """移動方向ごとのこうかとん画像を回転して作成する。"""
 
     kk_imgs = {}
     kk_img = pg.image.load(KK_IMG_PATH)
@@ -83,6 +92,7 @@ def get_kk_imgs() -> dict[tuple[int, int], pg.Surface]:
 def calc_orientation(
     org: pg.Rect, dst: pg.Rect, current_xy: tuple[float, float]
 ) -> tuple[float, float]:
+    """爆弾の向きを計算し、一定距離より遠いときはこうかとんへ向かわせる。"""
 
     diff_x = dst.centerx - org.centerx
     diff_y = dst.centery - org.centery
@@ -94,6 +104,7 @@ def calc_orientation(
 
 
 def bounce_bound(obj_rct: pg.Rect, vx: float, vy: float) -> tuple[float, float]:
+    """画面端で爆弾を跳ね返し、画面外に出た位置を補正する。"""
 
     yoko, tate = check_bound(obj_rct)
     if not yoko:
@@ -111,12 +122,9 @@ def bounce_bound(obj_rct: pg.Rect, vx: float, vy: float) -> tuple[float, float]:
     return vx, vy
 
 
-def show_game_over(
-    screen: pg.Surface,
-    bg_img: pg.Surface,
-    kk_img: pg.Surface,
-    kk_rct: pg.Rect,
-) -> None:
+def gameover(screen: pg.Surface) -> None:
+    """半透明の幕とGame Over文字を表示して終了画面にする。"""
+
     cover = pg.Surface((WIDTH, HEIGHT))
     cover.fill(BLACK)
     cover.set_alpha(150)
@@ -126,6 +134,7 @@ def show_game_over(
     txt_img = font.render("Game Over", True, WHITE)
     txt_rct = txt_img.get_rect(center=(WIDTH // 2, HEIGHT // 2))
 
+    kk_img = pg.transform.rotozoom(pg.image.load(GAMEOVER_KK_IMG_PATH), 0, 0.9)
     left_kk_rct = kk_img.get_rect()
     right_kk_rct = kk_img.get_rect()
     left_kk_rct.centery = txt_rct.centery
@@ -138,10 +147,11 @@ def show_game_over(
     screen.blit(kk_img, right_kk_rct)
 
     pg.display.update()
-    pg.time.wait(5000)
+    time.sleep(5)
 
 
 def main() -> None:
+    """ゲームの初期化、イベント処理、描画を行うメイン関数"""
 
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -150,6 +160,7 @@ def main() -> None:
     kk_img = kk_imgs[(0, 0)]
     kk_rct = kk_img.get_rect()
     kk_rct.center = 300, 200
+    bb_imgs, bb_accs = init_bb_imgs()
     bb_img, bb_rct = create_bomb()
     vx, vy = BOMB_START_SPEED, BOMB_START_SPEED
     clock = pg.time.Clock()
@@ -162,6 +173,7 @@ def main() -> None:
 
         screen.blit(bg_img, [0, 0])
 
+        # 押されているキーから、こうかとんの移動量を作る。
         key_lst = pg.key.get_pressed()
         sum_mv = [0, 0]
         for key, delta in DELTA.items():
@@ -178,15 +190,18 @@ def main() -> None:
             kk_img = old_kk_img
             kk_rct = old_kk_rct
 
-        radius, _ = calc_bomb_params(tmr)
-        bb_img = create_bomb_img(radius)
+        # 爆弾は時間経過で大きく速くなり、距離があるときはこうかとんを追尾する。
+        bb_level = min(tmr // 500, BOMB_STAGES - 1)
+        bb_img = bb_imgs[bb_level]
         bb_rct = bb_img.get_rect(center=bb_rct.center)
         vx, vy = calc_orientation(bb_rct, kk_rct, (vx, vy))
-        bb_rct.move_ip(vx, vy)
+        avx = vx * bb_accs[bb_level]
+        avy = vy * bb_accs[bb_level]
+        bb_rct.move_ip(avx, avy)
         vx, vy = bounce_bound(bb_rct, vx, vy)
 
         if kk_rct.colliderect(bb_rct):
-            show_game_over(screen, bg_img, kk_imgs[(0, 0)], kk_rct)
+            gameover(screen)
             return
 
         screen.blit(kk_img, kk_rct)
